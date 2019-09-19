@@ -461,7 +461,14 @@ type FSharpCompilerServiceChecker(backgroundServiceEnabled) =
   member __.GetProjectOptionsFromScript(file, source) = async {
     let targetFramework = NETFrameworkInfoProvider.latestInstalledNETVersion ()
     let! projOptions = fsxBinder.GetProjectOptionsFromScriptBy(targetFramework, file, source)
-
+    let projOptions =
+      match Environment.findLatestNetstandard with
+      | Some net ->
+        let refs, other = projOptions.OtherOptions |> Seq.toList |> List.partition (fun n -> n.StartsWith "-r")
+        {projOptions with OtherOptions = [| yield! refs; yield sprintf "-r:%s" net; yield! other |] }
+      | None -> projOptions
+    logDebug "[NETSTANDARD] %A" Environment.findLatestNetstandard
+    logDebug "[OPTIONS] %A" projOptions
     match FakeSupport.detectFakeScript file with
     | None -> return projOptions
     | Some (detectionInfo) ->

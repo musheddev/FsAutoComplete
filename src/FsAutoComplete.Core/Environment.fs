@@ -34,6 +34,12 @@ module Environment =
       | _ -> environVar "ProgramFiles"
       |> fun detected -> if detected = null then @"C:\Program Files (x86)\" else detected
 
+  let private programFiles =
+    let detected = environVar "ProgramFiles"
+    if detected = null then @"C:\Program Files\" else detected
+
+  let private userShared = "/usr/share/"
+
   // Below code slightly modified from FAKE MSBuildHelper.fs
 
   let private vsSkus = ["Community"; "Professional"; "Enterprise"; "BuildTools"]
@@ -77,6 +83,20 @@ module Environment =
   let fsharpCore =
     let dir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
     dir </> "FSharp.Core.dll"
+
+  let findLatestNetstandard =
+    let dotnetPath = (if isUnix then userShared else programFiles) </> "dotnet" </> "shared" </> "Microsoft.NETCore.App"
+    Debug.print "[DOTNET PATH] %s" dotnetPath
+    let installedSDKs =
+      Directory.EnumerateDirectories dotnetPath
+
+    Debug.print "[Installed SDKs] %A" installedSDKs
+    let latestDotnet =
+      installedSDKs
+      |> Seq.sortDescending
+      |> Seq.tryHead
+    latestDotnet
+    |> Option.map (fun n -> n </> "netstandard.dll")
 
   let workspaceLoadDelay () =
     match System.Environment.GetEnvironmentVariable("FSAC_WORKSPACELOAD_DELAY") with
